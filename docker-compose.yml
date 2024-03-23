@@ -1,0 +1,51 @@
+services:
+  redis:
+    image: redis
+    container_name: redis
+    ports:
+      - 6379:6379
+  mysql_db:
+    image: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - '32000:3306'
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  web:
+    build:
+      context: .
+    environment:
+      FLASK_APP: main
+      FLASK_DEBUG: 1
+    links:
+      - mysql_db
+    volumes:
+      - .:/app
+    command: flask run -h 0.0.0.0
+    depends_on:
+      - mysql_db
+    ports:
+      - 5000:5000
+  celery:
+    build:
+        context: .
+    environment:
+      FLASK_APP: main
+    volumes:
+      - .:/app
+    command: celery -A main.celery worker --loglevel=debug
+    depends_on:
+      - redis
+      - mysql_db
+  celery-beat:
+    build:
+      context: .
+    environment:
+      FLASK_APP: main
+    volumes:
+      - .:/app
+    command: celery -A main.celery beat --loglevel=debug
+    depends_on:
+      - redis
+      - mysql_db
