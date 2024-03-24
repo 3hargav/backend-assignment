@@ -12,6 +12,7 @@ from app.constants import YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, QUERY, 
 def update_to_db(video_data):
     video_ids = [video['id']["videoId"] for video in video_data]
 
+    # Fetching the existing video data from the DB
     existing_videos = {video.id: video for video in Videos.query.filter(Videos.id.in_(video_ids)).all()}
     print("Existing videos found: {}".format(len(existing_videos)))
 
@@ -72,7 +73,6 @@ def fetch_youtube_videos(self):
         youtube = build(
             YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=key_record.key
         )
-
         last_x_hrs_datetime = (datetime.utcnow() - timedelta(hours=1)).isoformat() + 'Z'
         try:
             search_response = (
@@ -84,8 +84,10 @@ def fetch_youtube_videos(self):
             video_data = search_response.get("items", [])
             print("fetched {} items from the api".format(len(video_data)))
         except Exception as e:
+            # Exception will occur if the quota exceeded than the presribed limit.
+            # HttpError (403)
             print("Exception occurred while calling the Youtube API: {}".format(e))
-            key_record.is_quota_exceeded = True
+            key_record.is_quota_exceeded = True   # Marking the API_KEY as quota_exceeded in DB
             db.session.commit()
 
         update_to_db(video_data)
